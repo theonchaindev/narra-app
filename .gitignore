@@ -1,9 +1,9 @@
 node_modules
 .next
 apps/web/node_modules
-apps/web/.prisma
 dist
 .env
 .env.local
 .turbo
 *.tsbuildinfo
+.vercel

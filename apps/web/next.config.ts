@@ -2,9 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@bags-scout/shared", "@bags-scout/db"],
-  outputFileTracingIncludes: {
-    "/**": ["./.prisma/client/*.node"],
-  },
+  serverExternalPackages: ["@prisma/client", "prisma"],
   images: {
     domains: ["pbs.twimg.com", "unavatar.io"],
   },
