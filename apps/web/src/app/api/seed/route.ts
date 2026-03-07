@@ -85,9 +85,9 @@ export async function POST(req: Request) {
     // Delete seed data in dependency order
     const seedTwitterIds = REAL_BUILDERS.map(b => b.twitterId);
     const builders = await prisma.builder.findMany({ where: { twitterId: { in: seedTwitterIds } } });
-    const builderIds = builders.map(b => b.id);
+    const builderIds = builders.map((b: { id: string }) => b.id);
     const opps = await prisma.opportunity.findMany({ where: { builderId: { in: builderIds } } });
-    const oppIds = opps.map(o => o.id);
+    const oppIds = opps.map((o: { id: string }) => o.id);
 
     await prisma.narrative.deleteMany({ where: { opportunityId: { in: oppIds } } });
     await prisma.opportunity.deleteMany({ where: { id: { in: oppIds } } });
