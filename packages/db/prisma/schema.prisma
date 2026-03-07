@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Builder {
+  id              String        @id @default(cuid())
+  twitterId       String        @unique
+  username        String
+  displayName     String
+  bio             String?
+  followerCount   Int
+  followingCount  Int
+  profileImageUrl String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  posts           Post[]
+  opportunities   Opportunity[]
+}
+
+model Post {
+  id            String       @id @default(cuid())
+  tweetId       String       @unique
+  builderId     String
+  builder       Builder      @relation(fields: [builderId], references: [id])
+  text          String
+  likeCount     Int          @default(0)
+  retweetCount  Int          @default(0)
+  replyCount    Int          @default(0)
+  hasMedia      Boolean      @default(false)
+  hasGithubLink Boolean      @default(false)
+  hasDemoLink   Boolean      @default(false)
+  postedAt      DateTime
+  createdAt     DateTime     @default(now())
+  opportunity   Opportunity?
+}
+
+model Opportunity {
+  id             String            @id @default(cuid())
+  builderId      String
+  builder        Builder           @relation(fields: [builderId], references: [id])
+  postId         String            @unique
+  post           Post              @relation(fields: [postId], references: [id])
+  score          Int
+  scoreBreakdown Json
+  status         OpportunityStatus @default(PENDING)
+  narrative      Narrative?
+  createdAt      DateTime          @default(now())
+
+  @@index([score(sort: Desc)])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
+model Narrative {
+  id              String      @id @default(cuid())
+  opportunityId   String      @unique
+  opportunity     Opportunity @relation(fields: [opportunityId], references: [id])
+  projectDesc     String
+  whyItMatters    String
+  tokenName       String
+  ticker          String
+  launchNarrative String
+  createdAt       DateTime    @default(now())
+}
+
+enum OpportunityStatus {
+  PENDING
+  SCORED
+  NARRATED
+  LAUNCHED
+}
+
+model Config {
+  key   String @id
+  value String
+}
