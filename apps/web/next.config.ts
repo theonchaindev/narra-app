@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@bags-scout/shared", "@bags-scout/db"],
   serverExternalPackages: ["@prisma/client", "prisma"],
   outputFileTracingIncludes: {
-    "/**": ["../../node_modules/.pnpm/**/.prisma/client/*.node"],
+    "/**": ["./.prisma/client/*.node"],
   },
   images: {
     domains: ["pbs.twimg.com", "unavatar.io"],
