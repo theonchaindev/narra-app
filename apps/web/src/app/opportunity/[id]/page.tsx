@@ -7,6 +7,8 @@ import { SignalBreakdown } from "@/components/SignalBreakdown";
 import type { ScoreBreakdown } from "@bags-scout/shared";
 import { OpportunityActions } from "@/components/OpportunityActions";
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }

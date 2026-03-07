@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { OpportunityWithRelations } from "@bags-scout/shared";
 import { LaunchModal } from "./LaunchModal";
 
@@ -11,7 +10,6 @@ interface OpportunityActionsProps {
 }
 
 export function OpportunityActions({ opportunity }: OpportunityActionsProps) {
-  const router = useRouter();
   const [showLaunch, setShowLaunch] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
@@ -23,13 +21,13 @@ export function OpportunityActions({ opportunity }: OpportunityActionsProps) {
       const res = await fetch(`/api/opportunities/${opportunity.id}/narrate`, { method: "POST" });
       const data = await res.json();
       if (data.success) {
-        router.refresh();
+        window.location.reload();
       } else {
         setError(data.error ?? "Generation failed. Try again.");
+        setGenerating(false);
       }
     } catch {
       setError("Network error. Try again.");
-    } finally {
       setGenerating(false);
     }
   }
