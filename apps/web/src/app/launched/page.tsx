@@ -3,7 +3,7 @@ import Link from "next/link";
 import { prisma } from "@bags-scout/db";
 import { ScoreBadge } from "@/components/ScoreBadge";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export default async function LaunchedPage() {
   const launched = await prisma.opportunity.findMany({
