@@ -1,5 +1,5 @@
 // Background service worker
-const NARRA_BASE = "http://localhost:3001";
+const NARRA_BASE = "https://bags-scout.vercel.app";
 
 // Open side panel when extension icon clicked
 chrome.action.onClicked.addListener((tab) => {

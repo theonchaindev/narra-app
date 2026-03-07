@@ -1,4 +1,4 @@
-const BASE = "http://localhost:3001";
+const BASE = "https://bags-scout.vercel.app";
 
 export interface ValidatedBuilder {
   valid: boolean;

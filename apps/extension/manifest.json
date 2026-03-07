@@ -11,7 +11,7 @@
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
-    "http://localhost:3001/*"
+    "https://bags-scout.vercel.app/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
