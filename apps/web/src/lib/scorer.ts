@@ -106,13 +106,14 @@ export async function scorePendingPosts(): Promise<number> {
 }
 
 export async function getHighScoreOpportunities(minScore = MIN_SCORE_FOR_NARRATIVE) {
-  return prisma.opportunity.findMany({
+  const opps = await prisma.opportunity.findMany({
     where: {
       score: { gte: minScore },
       status: "SCORED",
-      narrative: { is: null },
     },
-    include: { builder: true, post: true },
+    include: { builder: true, post: true, narrative: true },
     orderBy: { score: "desc" },
   });
+  // Filter out any that already have a narrative (workaround for Prisma v6 null relation filter)
+  return opps.filter(o => !o.narrative);
 }
