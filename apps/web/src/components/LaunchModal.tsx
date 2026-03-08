@@ -1,13 +1,29 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { Transaction, VersionedTransaction } from "@solana/web3.js";
+import bs58 from "bs58";
 import { useNarraWallet } from "@/context/WalletContext";
-import { shortenAddress } from "@/lib/clientWallet";
+import { shortenAddress, getOrCreateWallet } from "@/lib/clientWallet";
 import type { OpportunityWithRelations } from "@bags-scout/shared";
 
 const MIN_SOL = 0.05;
 
 type Step = "review" | "balance" | "confirm" | "launching" | "done" | "error";
+
+function signTx(base58Tx: string): string {
+  const keypair = getOrCreateWallet();
+  const txBytes = bs58.decode(base58Tx);
+  try {
+    const tx = VersionedTransaction.deserialize(txBytes);
+    tx.sign([keypair]);
+    return bs58.encode(tx.serialize());
+  } catch {
+    const tx = Transaction.from(txBytes);
+    tx.partialSign(keypair);
+    return bs58.encode(tx.serialize({ requireAllSignatures: false }));
+  }
+}
 
 export function LaunchModal({ opportunity, onClose }: { opportunity: OpportunityWithRelations; onClose: () => void }) {
   const { narrative, builder } = opportunity;
@@ -16,9 +32,9 @@ export function LaunchModal({ opportunity, onClose }: { opportunity: Opportunity
   const [step, setStep] = useState<Step>("review");
   const [mintAddress, setMintAddress] = useState("");
   const [error, setError] = useState("");
+  const [statusMsg, setStatusMsg] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
-  // Refresh balance when modal opens
   useEffect(() => { refresh(); }, [refresh]);
 
   if (!narrative) return null;
@@ -36,20 +52,66 @@ export function LaunchModal({ opportunity, onClose }: { opportunity: Opportunity
   async function handleLaunch() {
     if (!publicKey) return;
     setStep("launching");
+    setStatusMsg("Preparing token...");
+
     try {
+      // Step 1–3 server-side: create token info, fee config, launch tx
       const res = await fetch("/api/launch-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ opportunityId: opportunity.id, devWalletPublicKey: publicKey }),
+        body: JSON.stringify({ opportunityId: opportunity.id, walletPublicKey: publicKey }),
       });
       const data = await res.json();
-      if (data.success) {
-        setMintAddress(data.tokenMint ?? "");
-        setStep("done");
-      } else {
-        setError(data.error ?? "Launch failed");
+
+      if (!data.success) {
+        setError(data.error ?? "Preparation failed");
         setStep("error");
+        return;
       }
+
+      const { tokenMint, setupTransactions, launchTransaction } = data as {
+        tokenMint: string;
+        setupTransactions: string[];
+        launchTransaction: string;
+      };
+
+      // Sign and send setup transactions (fee config) if needed
+      for (let i = 0; i < setupTransactions.length; i++) {
+        setStatusMsg(`Setting up fee config (${i + 1}/${setupTransactions.length})...`);
+        const signed = signTx(setupTransactions[i]);
+        const sendRes = await fetch("/api/launch-token/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transaction: signed }),
+        });
+        const sendData = await sendRes.json();
+        if (!sendData.success) {
+          setError(sendData.error ?? "Fee config transaction failed");
+          setStep("error");
+          return;
+        }
+      }
+
+      // Sign and send the launch transaction
+      setStatusMsg("Signing launch transaction...");
+      const signedLaunch = signTx(launchTransaction);
+
+      setStatusMsg("Broadcasting to Solana...");
+      const launchSendRes = await fetch("/api/launch-token/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transaction: signedLaunch, opportunityId: opportunity.id }),
+      });
+      const launchSendData = await launchSendRes.json();
+
+      if (!launchSendData.success) {
+        setError(launchSendData.error ?? "Launch transaction failed");
+        setStep("error");
+        return;
+      }
+
+      setMintAddress(tokenMint);
+      setStep("done");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Launch failed");
       setStep("error");
@@ -152,8 +214,7 @@ export function LaunchModal({ opportunity, onClose }: { opportunity: Opportunity
               </div>
               {!canLaunch && (
                 <div className="bg-yellow-500/10 border border-yellow-500/25 rounded-xl p-3 text-sm text-yellow-200/80">
-                  Send <strong>{needed.toFixed(3)} SOL</strong> to your Narra wallet to cover launch fees.{" "}
-                  <a href="/wallet" className="underline hover:text-yellow-200" target="_blank">View wallet →</a>
+                  Send <strong>{needed.toFixed(3)} SOL</strong> to your Narra wallet to cover launch fees.
                 </div>
               )}
               <div className="flex gap-3">
@@ -190,6 +251,10 @@ export function LaunchModal({ opportunity, onClose }: { opportunity: Opportunity
                   <span className="text-white/40">Balance</span>
                   <span className="font-mono text-brand-400">{balance.toFixed(4)} SOL ✓</span>
                 </div>
+                <div className="flex justify-between text-sm bg-white/5 rounded-xl px-4 py-3">
+                  <span className="text-white/40">Fee share</span>
+                  <span className="text-white/70">100% to you</span>
+                </div>
               </div>
               <p className="text-xs text-white/20 text-center">Community Support Launch — creator not verified</p>
               <div className="flex gap-3">
@@ -206,7 +271,7 @@ export function LaunchModal({ opportunity, onClose }: { opportunity: Opportunity
             <div className="text-center py-12">
               <div className="w-12 h-12 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="font-semibold">Launching ${narrative.ticker}...</p>
-              <p className="text-sm text-white/40 mt-1">Submitting to Bags</p>
+              <p className="text-sm text-white/40 mt-1">{statusMsg}</p>
             </div>
           )}
 
@@ -216,8 +281,15 @@ export function LaunchModal({ opportunity, onClose }: { opportunity: Opportunity
               <div className="w-14 h-14 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center mx-auto mb-4 text-2xl">✓</div>
               <p className="font-bold text-xl text-brand-400">${narrative.ticker}</p>
               <p className="text-sm text-white/50 mb-4">{narrative.tokenName} launched successfully</p>
-              {mintAddress && mintAddress !== "STUB_MINT_ADDRESS_REPLACE_WHEN_BAGS_LIVE" && (
-                <p className="text-xs text-white/30 font-mono break-all bg-white/5 rounded-xl px-3 py-2 mb-4">{mintAddress}</p>
+              {mintAddress && (
+                <a
+                  href={`https://bags.fm/token/${mintAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs text-brand-400/60 hover:text-brand-400 font-mono break-all bg-white/5 rounded-xl px-3 py-2 mb-4 transition-colors"
+                >
+                  {mintAddress}
+                </a>
               )}
               <button onClick={onClose} className="w-full py-2.5 bg-brand-500 hover:bg-brand-400 text-black font-bold rounded-xl transition-colors">Done</button>
             </div>

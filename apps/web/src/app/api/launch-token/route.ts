@@ -1,69 +1,105 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@bags-scout/db";
 
-export interface LaunchTokenRequest {
-  opportunityId: string;
-  devWalletPublicKey: string;
-}
-
-export interface LaunchTokenResponse {
-  success: boolean;
-  tokenMint?: string;
-  error?: string;
-}
+const BAGS_API = "https://public-api-v2.bags.fm/api/v1";
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as LaunchTokenRequest;
+  const body = await req.json();
+  const { opportunityId, walletPublicKey } = body;
 
-  if (!body.opportunityId || !body.devWalletPublicKey) {
-    return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+  if (!opportunityId || !walletPublicKey) {
+    return NextResponse.json({ success: false, error: "Missing fields" }, { status: 400 });
   }
 
   const opportunity = await prisma.opportunity.findUnique({
-    where: { id: body.opportunityId },
+    where: { id: opportunityId },
     include: { narrative: true, builder: true },
   });
 
   if (!opportunity?.narrative) {
-    return NextResponse.json({ success: false, error: "Opportunity or narrative not found" }, { status: 404 });
+    return NextResponse.json({ success: false, error: "Opportunity not found" }, { status: 404 });
   }
 
-  const bagsBaseUrl = process.env.BAGS_BASE_URL ?? "http://localhost:3001";
-  const bagsApiKey = process.env.BAGS_API_KEY;
-
-  if (!bagsApiKey) {
+  const apiKey = process.env.BAGS_API_KEY;
+  if (!apiKey) {
     return NextResponse.json({ success: false, error: "Bags API key not configured" }, { status: 500 });
   }
 
-  const bagsRes = await fetch(`${bagsBaseUrl}/api/create-token`, {
+  const { narrative, builder } = opportunity;
+  const authHeaders = { "x-api-key": apiKey };
+
+  // Step 1: Create token info + metadata on IPFS
+  const formData = new FormData();
+  formData.append("name", narrative.tokenName.slice(0, 32));
+  formData.append("symbol", narrative.ticker.slice(0, 10));
+  formData.append("description", narrative.projectDesc.slice(0, 1000));
+  formData.append("twitter", `https://x.com/${builder.username}`);
+  formData.append("imageUrl", builder.profileImageUrl ?? "https://narra.app/narra-logo.png");
+
+  const tokenInfoRes = await fetch(`${BAGS_API}/token-launch/create-token-info`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${bagsApiKey}`,
-    },
+    headers: authHeaders,
+    body: formData,
+  });
+
+  if (!tokenInfoRes.ok) {
+    const err = await tokenInfoRes.text().catch(() => tokenInfoRes.statusText);
+    return NextResponse.json({ success: false, error: `Token info error: ${err}` }, { status: 502 });
+  }
+
+  const tokenInfoData = await tokenInfoRes.json();
+  const tokenMint: string = tokenInfoData.response.tokenMint;
+  const ipfs: string = tokenInfoData.response.tokenMetadata;
+
+  // Step 2: Create fee share config (launcher gets 100% of fees)
+  const feeConfigRes = await fetch(`${BAGS_API}/fee-share/config`, {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
     body: JSON.stringify({
-      name: opportunity.narrative.tokenName,
-      ticker: opportunity.narrative.ticker,
-      description: opportunity.narrative.projectDesc,
-      narrative: opportunity.narrative.launchNarrative,
-      devWallet: body.devWalletPublicKey,
-      twitter: opportunity.builder.username,
-      type: "community_support",
+      payer: walletPublicKey,
+      baseMint: tokenMint,
+      claimersArray: [walletPublicKey],
+      basisPointsArray: [10000],
     }),
   });
 
-  if (!bagsRes.ok) {
-    const text = await bagsRes.text().catch(() => bagsRes.statusText);
-    return NextResponse.json({ success: false, error: `Bags API error: ${text}` }, { status: 502 });
+  if (!feeConfigRes.ok) {
+    const err = await feeConfigRes.text().catch(() => feeConfigRes.statusText);
+    return NextResponse.json({ success: false, error: `Fee config error: ${err}` }, { status: 502 });
   }
 
-  const bagsData = await bagsRes.json();
-  const tokenMint: string = bagsData.tokenMint ?? bagsData.mint ?? bagsData.address ?? bagsData.token;
+  const feeConfigData = await feeConfigRes.json();
+  const feeResponse = feeConfigData.response ?? feeConfigData;
+  const configKey: string = feeResponse.meteoraConfigKey;
+  const setupTransactions: string[] = feeResponse.needsCreation
+    ? (feeResponse.transactions ?? [])
+    : [];
 
-  await prisma.opportunity.update({
-    where: { id: body.opportunityId },
-    data: { status: "LAUNCHED" },
+  // Step 3: Create the launch transaction (to be signed client-side)
+  const launchTxRes = await fetch(`${BAGS_API}/token-launch/create-launch-transaction`, {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ipfs,
+      tokenMint,
+      wallet: walletPublicKey,
+      initialBuyLamports: 0,
+      configKey,
+    }),
   });
 
-  return NextResponse.json({ success: true, tokenMint } satisfies LaunchTokenResponse);
+  if (!launchTxRes.ok) {
+    const err = await launchTxRes.text().catch(() => launchTxRes.statusText);
+    return NextResponse.json({ success: false, error: `Launch tx error: ${err}` }, { status: 502 });
+  }
+
+  const launchTxData = await launchTxRes.json();
+  const launchTransaction: string = launchTxData.response;
+
+  return NextResponse.json({
+    success: true,
+    tokenMint,
+    setupTransactions,
+    launchTransaction,
+  });
 }
