@@ -180,7 +180,6 @@ export default function DemoLaunchPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[10px] font-mono text-white/20 hover:text-brand-400 transition-colors"
-                  onClick={e => e.stopPropagation()}
                 >
                   {claim.tx}
                 </a>
