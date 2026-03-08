@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import {
   getOrCreateWallet,
-  getBalance,
   getPrivateKey,
   getStoredSecretKey,
   importWallet,
@@ -12,6 +11,17 @@ import {
   setXHandle,
   MIN_LAUNCH_SOL,
 } from "@/lib/clientWallet";
+
+async function fetchBalance(publicKey: string): Promise<number> {
+  try {
+    const res = await fetch(`/api/wallet/balance?pubkey=${publicKey}`);
+    if (!res.ok) return 0;
+    const data = await res.json() as { balance?: number };
+    return data.balance ?? 0;
+  } catch {
+    return 0;
+  }
+}
 
 interface WalletState {
   publicKey: string | null;
@@ -70,14 +80,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       // Non-fatal
     }
 
-    const bal = await getBalance(pubkey);
+    const bal = await fetchBalance(pubkey);
     setBalance(bal);
     setLoading(false);
   }, []);
 
   const refresh = useCallback(async () => {
     if (!publicKey) return;
-    const bal = await getBalance(publicKey);
+    const bal = await fetchBalance(publicKey);
     setBalance(bal);
   }, [publicKey]);
 
@@ -96,7 +106,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const withdraw = useCallback(async (toAddress: string, amountSol: number) => {
     const sig = await sendSol(toAddress, amountSol);
     if (publicKey) {
-      const bal = await getBalance(publicKey);
+      const bal = await fetchBalance(publicKey);
       setBalance(bal);
     }
     return sig;
