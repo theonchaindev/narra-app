@@ -94,7 +94,6 @@ export function BuilderFeed() {
   }
 
   const filtered = applyFilter(opportunities, filter);
-  const [top, ...rest] = filtered;
   const totalPages = Math.ceil(total / 20);
 
   const filterTabs: { key: Filter; label: string }[] = [
@@ -251,14 +250,9 @@ export function BuilderFeed() {
       {/* Feed */}
       {!loading && filtered.length > 0 && (
         <div className="space-y-4">
-          {/* Featured top card (full width) */}
-          {top && page === 1 && filter === "all" && !q && (
-            <NarrativeCard opportunity={top} featured />
-          )}
-
           {/* Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {(page === 1 && filter === "all" && !q ? rest : filtered).map(opp => (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filtered.map(opp => (
               <NarrativeCard key={opp.id} opportunity={opp} />
             ))}
           </div>
