@@ -1,4 +1,4 @@
-import { Keypair, Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Keypair, Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
 
 const STORAGE_KEY = "narraWallet";
@@ -52,4 +52,30 @@ export function shortenAddress(addr: string): string {
 
 export function qrUrl(address: string): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=0a0a0a&color=4ade80&data=${address}`;
+}
+
+export const TX_FEE_SOL = 0.000005; // ~5000 lamports
+
+export async function sendSol(toAddress: string, amountSol: number): Promise<string> {
+  const keypair = getOrCreateWallet();
+  const connection = new Connection(RPC, "confirmed");
+  const toPubkey = new PublicKey(toAddress);
+
+  const lamports = Math.round(amountSol * LAMPORTS_PER_SOL);
+
+  const tx = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: keypair.publicKey,
+      toPubkey,
+      lamports,
+    })
+  );
+
+  tx.feePayer = keypair.publicKey;
+  tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  tx.sign(keypair);
+
+  const signature = await connection.sendRawTransaction(tx.serialize());
+  await connection.confirmTransaction(signature, "confirmed");
+  return signature;
 }

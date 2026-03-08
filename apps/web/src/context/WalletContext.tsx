@@ -7,6 +7,7 @@ import {
   getPrivateKey,
   importWallet,
   clearWallet,
+  sendSol,
   MIN_LAUNCH_SOL,
 } from "@/lib/clientWallet";
 
@@ -19,6 +20,7 @@ interface WalletState {
   exportPrivateKey: () => string | null;
   importKey: (sk: string) => Promise<void>;
   reset: () => Promise<void>;
+  withdraw: (toAddress: string, amountSol: number) => Promise<string>;
 }
 
 const WalletContext = createContext<WalletState>({
@@ -30,6 +32,7 @@ const WalletContext = createContext<WalletState>({
   exportPrivateKey: () => null,
   importKey: async () => {},
   reset: async () => {},
+  withdraw: async () => "",
 });
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
@@ -43,7 +46,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const pubkey = keypair.publicKey.toBase58();
     setPublicKey(pubkey);
 
-    // Sync public key to backend so extension can read it
     try {
       await fetch("/api/wallet", {
         method: "POST",
@@ -51,7 +53,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ publicKey: pubkey }),
       });
     } catch {
-      // Non-fatal: backend sync failure
+      // Non-fatal
     }
 
     const bal = await getBalance(pubkey);
@@ -80,6 +82,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     await init();
   }, [init]);
 
+  const withdraw = useCallback(async (toAddress: string, amountSol: number) => {
+    const sig = await sendSol(toAddress, amountSol);
+    if (publicKey) {
+      const bal = await getBalance(publicKey);
+      setBalance(bal);
+    }
+    return sig;
+  }, [publicKey]);
+
   useEffect(() => {
     init();
   }, [init]);
@@ -95,6 +106,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         exportPrivateKey,
         importKey,
         reset,
+        withdraw,
       }}
     >
       {children}

@@ -20,13 +20,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Narra is in beta — expect rough edges.
           </div>
 
-          <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0a0a]/90 backdrop-blur-md px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+          <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0a0a0a]/90 backdrop-blur-md px-4 sm:px-6 py-3 grid grid-cols-3 items-center">
             <Link href="/" className="flex items-center gap-2.5 shrink-0">
               <Image src="/narra-logo.png" alt="Narra" width={32} height={32} className="rounded-lg" />
               <span className="font-bold text-base tracking-tight">Narra</span>
             </Link>
 
-            <nav className="hidden sm:flex items-center gap-0.5">
+            <nav className="hidden sm:flex items-center justify-center gap-0.5">
               <Link href="/" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Discover</Link>
               <Link href="/track" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Track</Link>
               <Link href="/launched" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Launched</Link>
@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/docs" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Docs</Link>
             </nav>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 justify-end">
               <NarraWalletChip />
               <a
                 href="https://raydium.io/swap/?inputMint=sol&outputMint=narra"
