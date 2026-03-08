@@ -104,6 +104,8 @@ export async function generatePendingNarratives(limit = 5): Promise<number> {
       generated++;
     } catch (err) {
       console.error(`Narrative generation failed for opportunity ${opp.id}:`, err);
+      // Re-throw first error so callers can detect failures
+      if (generated === 0) throw err;
     }
   }
 
