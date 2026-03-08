@@ -3,8 +3,7 @@ import { runScan } from "@/lib/scanner";
 import { scorePendingPosts } from "@/lib/scorer";
 import { generatePendingNarratives } from "@/lib/narrative";
 
-// Vercel cron: add to vercel.json:
-// { "crons": [{ "path": "/api/cron", "schedule": "0 */4 * * *" }] }
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   const secret = req.headers.get("x-cron-secret");

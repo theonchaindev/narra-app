@@ -3,6 +3,8 @@ import { runScan } from "@/lib/scanner";
 import { scorePendingPosts } from "@/lib/scorer";
 import { generatePendingNarratives } from "@/lib/narrative";
 
+export const maxDuration = 60;
+
 export async function POST() {
   try {
     const scanStats = await runScan();

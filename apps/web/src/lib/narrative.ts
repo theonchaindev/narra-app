@@ -67,8 +67,9 @@ Keep the tone authentic, builder-focused, and supportive. Avoid hype. Be specifi
   return parsed;
 }
 
-export async function generatePendingNarratives(): Promise<number> {
-  const opportunities = await getHighScoreOpportunities();
+export async function generatePendingNarratives(limit = 5): Promise<number> {
+  const all = await getHighScoreOpportunities();
+  const opportunities = all.slice(0, limit);
   let generated = 0;
 
   for (const opp of opportunities) {
