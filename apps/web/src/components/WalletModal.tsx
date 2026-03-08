@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useNarraWallet } from "@/context/WalletContext";
-import { shortenAddress, qrUrl, MIN_LAUNCH_SOL, TX_FEE_SOL } from "@/lib/clientWallet";
+import { shortenAddress, qrUrl, MIN_LAUNCH_SOL, TX_FEE_SOL, getStoredXHandle, setXHandle } from "@/lib/clientWallet";
 
-type Tab = "deposit" | "withdraw" | "settings";
+type Tab = "deposit" | "withdraw" | "account" | "settings";
 
 export function WalletModal() {
   const {
@@ -30,12 +30,20 @@ export function WalletModal() {
   const [importError, setImportError] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
 
+  // Account / X handle
+  const [xHandle, setXHandleState] = useState<string>("");
+  const [xHandleInput, setXHandleInput] = useState("");
+  const [xHandleSaved, setXHandleSaved] = useState(false);
+
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (walletOpen) {
       setVisible(true);
+      const handle = getStoredXHandle() ?? "";
+      setXHandleState(handle);
+      setXHandleInput(handle);
       requestAnimationFrame(() => requestAnimationFrame(() => setAnimating(true)));
     } else {
       setAnimating(false);
@@ -156,7 +164,7 @@ export function WalletModal() {
 
         {/* Tabs */}
         <div className="flex gap-1 mx-5 mb-4 p-1 bg-white/5 rounded-xl">
-          {(["deposit", "withdraw", "settings"] as Tab[]).map((t) => (
+          {(["deposit", "withdraw", "account", "settings"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -245,6 +253,61 @@ export function WalletModal() {
                 </>
               )}
             </form>
+          )}
+
+          {/* Account */}
+          {tab === "account" && (
+            <div className="space-y-3">
+              <div className="bg-white/5 border border-white/8 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-4 h-4 text-white/40 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  <p className="text-xs font-medium">X Account</p>
+                </div>
+                {xHandle ? (
+                  <a
+                    href={`https://x.com/${xHandle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-3 hover:border-white/20 transition-colors group"
+                  >
+                    <span className="text-white/40 text-sm">@</span>
+                    <span className="text-sm font-medium flex-1">{xHandle}</span>
+                    <svg className="w-3 h-3 text-white/20 group-hover:text-white/40 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                ) : (
+                  <p className="text-xs text-white/30 mb-3">No X account linked yet.</p>
+                )}
+                <div className="flex gap-2">
+                  <div className="flex-1 flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl px-3 py-2 focus-within:border-white/25 transition-colors">
+                    <span className="text-white/30 text-xs">@</span>
+                    <input
+                      type="text"
+                      value={xHandleInput}
+                      onChange={e => setXHandleInput(e.target.value.replace(/^@/, ""))}
+                      placeholder="update handle"
+                      className="flex-1 bg-transparent text-xs text-white placeholder-white/20 outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      const cleaned = xHandleInput.trim();
+                      setXHandle(cleaned);
+                      setXHandleState(cleaned);
+                      setXHandleSaved(true);
+                      setTimeout(() => setXHandleSaved(false), 2000);
+                    }}
+                    disabled={!xHandleInput.trim() || xHandleInput.trim() === xHandle}
+                    className="px-3 py-2 text-xs bg-white/10 hover:bg-white/15 disabled:opacity-40 border border-white/10 rounded-xl font-medium transition-colors"
+                  >
+                    {xHandleSaved ? "✓" : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Settings */}
