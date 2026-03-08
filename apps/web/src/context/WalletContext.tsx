@@ -5,6 +5,7 @@ import {
   getOrCreateWallet,
   getBalance,
   getPrivateKey,
+  getStoredSecretKey,
   importWallet,
   clearWallet,
   sendSol,
@@ -16,6 +17,8 @@ interface WalletState {
   balance: number;
   canLaunch: boolean;
   loading: boolean;
+  needsOnboarding: boolean;
+  createWallet: () => Promise<void>;
   walletOpen: boolean;
   openWallet: () => void;
   closeWallet: () => void;
@@ -31,6 +34,8 @@ const WalletContext = createContext<WalletState>({
   balance: 0,
   canLaunch: false,
   loading: true,
+  needsOnboarding: false,
+  createWallet: async () => {},
   walletOpen: false,
   openWallet: () => {},
   closeWallet: () => {},
@@ -46,6 +51,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   const init = useCallback(async () => {
     setLoading(true);
@@ -95,11 +101,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return sig;
   }, [publicKey]);
 
+  const createWallet = useCallback(async () => {
+    setNeedsOnboarding(false);
+    await init();
+  }, [init]);
+
   const openWallet = useCallback(() => setWalletOpen(true), []);
   const closeWallet = useCallback(() => setWalletOpen(false), []);
 
   useEffect(() => {
-    init();
+    // Check before creating — if no key stored, show onboarding first
+    if (getStoredSecretKey()) {
+      init();
+    } else {
+      setNeedsOnboarding(true);
+      setLoading(false);
+    }
   }, [init]);
 
   // Lock body scroll when modal open
@@ -115,6 +132,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         balance,
         canLaunch: balance >= MIN_LAUNCH_SOL,
         loading,
+        needsOnboarding,
+        createWallet,
         walletOpen,
         openWallet,
         closeWallet,

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Providers } from "@/components/Providers";
 import { NarraWalletChip } from "@/components/NarraWalletChip";
 import { WalletModal } from "@/components/WalletModal";
+import { WalletOnboarding } from "@/components/WalletOnboarding";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main>{children}</main>
 
           <WalletModal />
+          <WalletOnboarding />
 
           {/* Floating Chrome extension CTA */}
           <a
