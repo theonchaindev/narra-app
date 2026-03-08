@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Providers } from "@/components/Providers";
 import { NarraWalletChip } from "@/components/NarraWalletChip";
+import { WalletModal } from "@/components/WalletModal";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Discover</Link>
               <Link href="/track" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Track</Link>
               <Link href="/launched" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Launched</Link>
-              <Link href="/wallet" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Wallet</Link>
+              <a href="https://x.com/narraapp" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Community</a>
               <Link href="/docs" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Docs</Link>
             </nav>
 
@@ -51,11 +52,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Discover</Link>
             <Link href="/track" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Track</Link>
             <Link href="/launched" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Launched</Link>
-            <Link href="/wallet" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Wallet</Link>
+            <a href="https://x.com/narraapp" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Community</a>
             <Link href="/docs" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Docs</Link>
           </div>
 
           <main>{children}</main>
+
+          <WalletModal />
 
           {/* Floating Chrome extension CTA */}
           <a

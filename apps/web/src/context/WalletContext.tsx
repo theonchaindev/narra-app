@@ -16,6 +16,9 @@ interface WalletState {
   balance: number;
   canLaunch: boolean;
   loading: boolean;
+  walletOpen: boolean;
+  openWallet: () => void;
+  closeWallet: () => void;
   refresh: () => Promise<void>;
   exportPrivateKey: () => string | null;
   importKey: (sk: string) => Promise<void>;
@@ -28,6 +31,9 @@ const WalletContext = createContext<WalletState>({
   balance: 0,
   canLaunch: false,
   loading: true,
+  walletOpen: false,
+  openWallet: () => {},
+  closeWallet: () => {},
   refresh: async () => {},
   exportPrivateKey: () => null,
   importKey: async () => {},
@@ -39,6 +45,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [walletOpen, setWalletOpen] = useState(false);
 
   const init = useCallback(async () => {
     setLoading(true);
@@ -69,13 +76,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const exportPrivateKey = useCallback(() => getPrivateKey(), []);
 
-  const importKey = useCallback(
-    async (sk: string) => {
-      importWallet(sk);
-      await init();
-    },
-    [init]
-  );
+  const importKey = useCallback(async (sk: string) => {
+    importWallet(sk);
+    await init();
+  }, [init]);
 
   const reset = useCallback(async () => {
     clearWallet();
@@ -91,9 +95,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return sig;
   }, [publicKey]);
 
+  const openWallet = useCallback(() => setWalletOpen(true), []);
+  const closeWallet = useCallback(() => setWalletOpen(false), []);
+
   useEffect(() => {
     init();
   }, [init]);
+
+  // Lock body scroll when modal open
+  useEffect(() => {
+    document.body.style.overflow = walletOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [walletOpen]);
 
   return (
     <WalletContext.Provider
@@ -102,6 +115,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         balance,
         canLaunch: balance >= MIN_LAUNCH_SOL,
         loading,
+        walletOpen,
+        openWallet,
+        closeWallet,
         refresh,
         exportPrivateKey,
         importKey,
