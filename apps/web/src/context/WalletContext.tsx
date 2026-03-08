@@ -9,6 +9,7 @@ import {
   importWallet,
   clearWallet,
   sendSol,
+  setXHandle,
   MIN_LAUNCH_SOL,
 } from "@/lib/clientWallet";
 
@@ -18,7 +19,7 @@ interface WalletState {
   canLaunch: boolean;
   loading: boolean;
   needsOnboarding: boolean;
-  createWallet: () => Promise<void>;
+  createWallet: (xHandle?: string) => Promise<void>;
   walletOpen: boolean;
   openWallet: () => void;
   closeWallet: () => void;
@@ -35,7 +36,7 @@ const WalletContext = createContext<WalletState>({
   canLaunch: false,
   loading: true,
   needsOnboarding: false,
-  createWallet: async () => {},
+  createWallet: async (_xHandle?: string) => {},
   walletOpen: false,
   openWallet: () => {},
   closeWallet: () => {},
@@ -101,7 +102,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return sig;
   }, [publicKey]);
 
-  const createWallet = useCallback(async () => {
+  const createWallet = useCallback(async (xHandle?: string) => {
+    if (xHandle) setXHandle(xHandle);
     setNeedsOnboarding(false);
     await init();
   }, [init]);

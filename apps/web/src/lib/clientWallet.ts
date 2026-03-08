@@ -1,7 +1,8 @@
 import { Keypair, Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
 
-const STORAGE_KEY = "narraWallet";
+const STORAGE_KEY = "narra_w3"; // bumped to force re-onboarding
+const X_HANDLE_KEY = "narra_xhandle";
 const RPC = "https://api.mainnet-beta.solana.com";
 
 export const MIN_LAUNCH_SOL = 0.05;
@@ -34,6 +35,16 @@ export function clearWallet(): void {
 
 export function getPrivateKey(): string | null {
   return getStoredSecretKey();
+}
+
+export function getStoredXHandle(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(X_HANDLE_KEY);
+}
+
+export function setXHandle(handle: string): void {
+  const cleaned = handle.replace(/^@/, "").toLowerCase().trim();
+  if (cleaned) localStorage.setItem(X_HANDLE_KEY, cleaned);
 }
 
 export async function getBalance(publicKey: string): Promise<number> {

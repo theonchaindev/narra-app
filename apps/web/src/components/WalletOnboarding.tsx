@@ -8,12 +8,13 @@ export function WalletOnboarding() {
   const { needsOnboarding, createWallet } = useNarraWallet();
   const [creating, setCreating] = useState(false);
   const [done, setDone] = useState(false);
+  const [xHandle, setXHandleInput] = useState("");
 
   if (!needsOnboarding) return null;
 
   async function handleCreate() {
     setCreating(true);
-    await createWallet();
+    await createWallet(xHandle || undefined);
     setDone(true);
   }
 
@@ -48,6 +49,24 @@ export function WalletOnboarding() {
             <Row icon="🔑" title="Yours only" desc="Your wallet lives in your browser. No one else can see or access it." />
             <Row icon="⚡" title="Ready to launch" desc="Fund it with SOL to back builders and launch community tokens." />
             <Row icon="💾" title="Export anytime" desc="Back it up from the wallet menu whenever you want." />
+          </div>
+
+          {/* X handle input */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 bg-white/4 border border-white/10 rounded-xl px-3 py-2.5 focus-within:border-white/25 transition-colors">
+              <svg className="w-3.5 h-3.5 text-white/30 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              <span className="text-white/30 text-sm">@</span>
+              <input
+                type="text"
+                placeholder="yourhandle (optional)"
+                value={xHandle}
+                onChange={e => setXHandleInput(e.target.value.replace(/^@/, ""))}
+                className="flex-1 bg-transparent text-sm text-white placeholder-white/20 outline-none"
+              />
+            </div>
+            <p className="text-[10px] text-white/20 mt-1.5 px-1">Helps us identify who launches tokens</p>
           </div>
 
           {/* CTA */}
