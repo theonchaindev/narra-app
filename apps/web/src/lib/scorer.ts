@@ -110,7 +110,7 @@ export async function getHighScoreOpportunities(minScore = MIN_SCORE_FOR_NARRATI
     where: {
       score: { gte: minScore },
       status: "SCORED",
-      narrative: null,
+      narrative: { is: null },
     },
     include: { builder: true, post: true },
     orderBy: { score: "desc" },
