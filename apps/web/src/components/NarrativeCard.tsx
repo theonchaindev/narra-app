@@ -23,7 +23,7 @@ export function NarrativeCard({ opportunity, featured = false }: { opportunity: 
 
   return (
     <>
-      <div className={`group flex flex-col bg-[#0e0e0e] border border-white/8 rounded-2xl overflow-hidden transition-all hover:border-white/16 hover:bg-[#111] ${featured ? "md:flex-row" : ""}`}>
+      <div className={`group flex flex-col bg-[#0e0e0e] border border-white/8 rounded-2xl overflow-hidden transition-all duration-300 hover:border-green-500/50 hover:shadow-[0_0_0_1px_rgba(74,222,128,0.15),0_0_20px_rgba(74,222,128,0.06)] hover:bg-[#111] ${featured ? "md:flex-row" : ""}`}>
 
         {/* Charitable stripe */}
         {isCharitable && (
@@ -82,7 +82,9 @@ export function NarrativeCard({ opportunity, featured = false }: { opportunity: 
             {post.hasGithubLink && <Tag>GitHub</Tag>}
             {post.hasMedia && <Tag>Demo</Tag>}
             {post.hasDemoLink && <Tag>Live</Tag>}
-            <Tag>{post.likeCount} ♥</Tag>
+            <span className={`text-[10px] border px-2 py-0.5 rounded-full ${post.likeCount > 0 ? "text-red-400 bg-red-500/8 border-red-500/20" : "text-white/25 bg-white/4 border-white/6"}`}>
+              {post.likeCount} ♥
+            </span>
             {post.retweetCount > 0 && <Tag>{post.retweetCount} RT</Tag>}
             <a
               href={tweetUrl}

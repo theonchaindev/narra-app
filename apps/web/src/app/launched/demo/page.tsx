@@ -75,7 +75,7 @@ export default function DemoLaunchPage() {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Launched
         </Link>
-        <span className="text-[10px] font-bold px-3 py-1 bg-brand-500/15 border border-brand-500/30 text-brand-400 rounded-full tracking-widest uppercase">
+        <span className="text-[10px] font-bold px-3 py-1 bg-green-500/15 border border-green-500/30 text-green-400 rounded-full tracking-widest uppercase">
           Demo
         </span>
       </div>

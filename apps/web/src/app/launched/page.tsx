@@ -53,10 +53,10 @@ export default async function LaunchedPage() {
           {/* ── Demo card ── */}
           <Link
             href="/launched/demo"
-            className="group relative bg-[#111] border border-brand-500/35 rounded-2xl p-5 hover:border-brand-500/70 transition-all hover:shadow-lg hover:shadow-brand-500/10"
+            className="group relative bg-[#111] border border-green-500/30 rounded-2xl p-5 hover:border-green-500/60 transition-all duration-300 hover:shadow-[0_0_0_1px_rgba(74,222,128,0.12),0_0_24px_rgba(74,222,128,0.08)]"
           >
             {/* Demo badge */}
-            <span className="absolute top-3.5 right-3.5 text-[9px] font-bold px-2 py-0.5 bg-brand-500/15 border border-brand-500/30 text-brand-400 rounded-full tracking-widest uppercase">
+            <span className="absolute top-3.5 right-3.5 text-[9px] font-bold px-2 py-0.5 bg-green-500/15 border border-green-500/30 text-green-400 rounded-full tracking-widest uppercase">
               Demo
             </span>
 
