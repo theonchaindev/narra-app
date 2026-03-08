@@ -5,7 +5,16 @@ const BAGS_API = "https://public-api-v2.bags.fm/api/v1";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { opportunityId, walletPublicKey } = body;
+  const {
+    opportunityId,
+    walletPublicKey,
+    tokenName: customName,
+    ticker: customTicker,
+    description: customDesc,
+    imageUrl: customImageUrl,
+    website,
+    devBuySol,
+  } = body;
 
   if (!opportunityId || !walletPublicKey) {
     return NextResponse.json({ success: false, error: "Missing fields" }, { status: 400 });
@@ -28,13 +37,21 @@ export async function POST(req: NextRequest) {
   const { narrative, builder } = opportunity;
   const authHeaders = { "x-api-key": apiKey };
 
+  // Resolve token details — prefer user-provided overrides
+  const name = (customName || narrative.tokenName).slice(0, 32);
+  const symbol = (customTicker || narrative.ticker).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+  const description = (customDesc || narrative.projectDesc).slice(0, 1000);
+  const imageUrl = customImageUrl || builder.profileImageUrl || "";
+  const initialBuyLamports = Math.round(Math.max(0, parseFloat(devBuySol) || 0) * 1_000_000_000);
+
   // Step 1: Create token info + metadata on IPFS
   const formData = new FormData();
-  formData.append("name", narrative.tokenName.slice(0, 32));
-  formData.append("symbol", narrative.ticker.slice(0, 10));
-  formData.append("description", narrative.projectDesc.slice(0, 1000));
+  formData.append("name", name);
+  formData.append("symbol", symbol);
+  formData.append("description", description);
   formData.append("twitter", `https://x.com/${builder.username}`);
-  formData.append("imageUrl", builder.profileImageUrl ?? "https://narra.app/narra-logo.png");
+  if (website) formData.append("website", website);
+  if (imageUrl) formData.append("imageUrl", imageUrl);
 
   const tokenInfoRes = await fetch(`${BAGS_API}/token-launch/create-token-info`, {
     method: "POST",
@@ -83,7 +100,7 @@ export async function POST(req: NextRequest) {
       ipfs,
       tokenMint,
       wallet: walletPublicKey,
-      initialBuyLamports: 0,
+      initialBuyLamports,
       configKey,
     }),
   });
