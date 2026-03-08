@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Transaction, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import { useNarraWallet } from "@/context/WalletContext";
-import { shortenAddress, getOrCreateWallet } from "@/lib/clientWallet";
+import { shortenAddress, getOrCreateWallet, qrUrl } from "@/lib/clientWallet";
 import type { OpportunityWithRelations } from "@bags-scout/shared";
 
 const MIN_SOL = 0.05;
 
-type Step = "review" | "balance" | "confirm" | "launching" | "done" | "error";
+type Step = "review" | "confirm" | "launching" | "done" | "error";
 
 function signTx(base58Tx: string): string {
   const keypair = getOrCreateWallet();
@@ -41,9 +42,9 @@ export function LaunchModal({ opportunity, onClose }: { opportunity: Opportunity
 
   const needed = Math.max(0, MIN_SOL - balance);
   const shortAddr = publicKey ? shortenAddress(publicKey) : "";
-  const STEPS: Step[] = ["review", "balance", "confirm"];
+  const pct = Math.min(100, (balance / MIN_SOL) * 100);
 
-  async function handleRefreshBalance() {
+  async function handleRefresh() {
     setRefreshing(true);
     await refresh();
     setRefreshing(false);
@@ -53,62 +54,38 @@ export function LaunchModal({ opportunity, onClose }: { opportunity: Opportunity
     if (!publicKey) return;
     setStep("launching");
     setStatusMsg("Preparing token...");
-
     try {
-      // Step 1–3 server-side: create token info, fee config, launch tx
       const res = await fetch("/api/launch-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ opportunityId: opportunity.id, walletPublicKey: publicKey }),
       });
       const data = await res.json();
-
-      if (!data.success) {
-        setError(data.error ?? "Preparation failed");
-        setStep("error");
-        return;
-      }
+      if (!data.success) { setError(data.error ?? "Preparation failed"); setStep("error"); return; }
 
       const { tokenMint, setupTransactions, launchTransaction } = data as {
-        tokenMint: string;
-        setupTransactions: string[];
-        launchTransaction: string;
+        tokenMint: string; setupTransactions: string[]; launchTransaction: string;
       };
 
-      // Sign and send setup transactions (fee config) if needed
       for (let i = 0; i < setupTransactions.length; i++) {
-        setStatusMsg(`Setting up fee config (${i + 1}/${setupTransactions.length})...`);
-        const signed = signTx(setupTransactions[i]);
+        setStatusMsg(`Fee config (${i + 1}/${setupTransactions.length})...`);
         const sendRes = await fetch("/api/launch-token/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transaction: signed }),
+          body: JSON.stringify({ transaction: signTx(setupTransactions[i]) }),
         });
         const sendData = await sendRes.json();
-        if (!sendData.success) {
-          setError(sendData.error ?? "Fee config transaction failed");
-          setStep("error");
-          return;
-        }
+        if (!sendData.success) { setError(sendData.error ?? "Setup failed"); setStep("error"); return; }
       }
-
-      // Sign and send the launch transaction
-      setStatusMsg("Signing launch transaction...");
-      const signedLaunch = signTx(launchTransaction);
 
       setStatusMsg("Broadcasting to Solana...");
-      const launchSendRes = await fetch("/api/launch-token/send", {
+      const launchRes = await fetch("/api/launch-token/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transaction: signedLaunch, opportunityId: opportunity.id }),
+        body: JSON.stringify({ transaction: signTx(launchTransaction), opportunityId: opportunity.id }),
       });
-      const launchSendData = await launchSendRes.json();
-
-      if (!launchSendData.success) {
-        setError(launchSendData.error ?? "Launch transaction failed");
-        setStep("error");
-        return;
-      }
+      const launchData = await launchRes.json();
+      if (!launchData.success) { setError(launchData.error ?? "Launch failed"); setStep("error"); return; }
 
       setMintAddress(tokenMint);
       setStep("done");
@@ -119,201 +96,194 @@ export function LaunchModal({ opportunity, onClose }: { opportunity: Opportunity
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-      <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-[#0e0e0e] border border-white/10 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl shadow-black/60 flex flex-col max-h-[92vh]">
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <div>
-            <h2 className="font-semibold">Launch via Bags</h2>
-            <p className="text-xs text-white/40 mt-0.5">Community Support Launch</p>
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
+          <div className="flex items-center gap-3">
+            {builder.profileImageUrl && (
+              <Image src={builder.profileImageUrl} alt={builder.displayName} width={32} height={32} className="rounded-full ring-1 ring-white/10" />
+            )}
+            <div>
+              <p className="font-semibold text-sm leading-tight">{narrative.tokenName}</p>
+              <p className="text-xs text-white/35">@{builder.username}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-white/30 hover:text-white/70 transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="font-mono font-bold text-brand-400">${narrative.ticker}</span>
+            <button onClick={onClose} className="text-white/25 hover:text-white/60 transition-colors">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        {/* Step indicators */}
-        {!["launching", "done", "error"].includes(step) && (
-          <div className="flex border-b border-white/10">
-            {STEPS.map((s, i) => {
-              const curIdx = STEPS.indexOf(step);
-              const done = i < curIdx;
-              const active = i === curIdx;
-              return (
-                <div key={s} className="flex-1 py-2 text-center">
-                  <span className={`text-xs font-medium ${active ? "text-brand-400" : done ? "text-brand-700" : "text-white/20"}`}>
-                    {done ? "✓" : `${i + 1}`}. {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </span>
-                </div>
-              );
-            })}
+        {/* Step dots */}
+        {step === "review" || step === "confirm" ? (
+          <div className="flex items-center justify-center gap-1.5 pb-4 shrink-0">
+            {(["review", "confirm"] as Step[]).map((s, i) => (
+              <div key={s} className={`h-1 rounded-full transition-all ${step === s ? "w-6 bg-brand-400" : i < (step === "confirm" ? 1 : 0) ? "w-3 bg-brand-700" : "w-3 bg-white/10"}`} />
+            ))}
           </div>
-        )}
+        ) : null}
 
-        <div className="p-6 space-y-4">
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 px-5 pb-5">
+
           {/* REVIEW */}
           {step === "review" && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <Box label="Token name"><span className="font-semibold">{narrative.tokenName}</span></Box>
-                <Box label="Ticker"><span className="font-mono font-bold text-brand-400">${narrative.ticker}</span></Box>
+            <div className="space-y-4">
+              {/* Narrative */}
+              <div className="bg-white/4 rounded-2xl p-4 space-y-3">
+                <p className="text-xs text-white/30 uppercase tracking-wider font-medium">Project</p>
+                <p className="text-sm text-white/80 leading-relaxed">{narrative.projectDesc}</p>
+                <div className="border-t border-white/6 pt-3">
+                  <p className="text-xs text-white/30 uppercase tracking-wider font-medium mb-1.5">Why it matters</p>
+                  <p className="text-sm text-white/60 leading-relaxed">{narrative.whyItMatters}</p>
+                </div>
+                <div className="border-t border-white/6 pt-3">
+                  <p className="text-xs text-white/30 uppercase tracking-wider font-medium mb-1.5">Launch narrative</p>
+                  <p className="text-sm text-white/60 leading-relaxed">{narrative.launchNarrative}</p>
+                </div>
               </div>
-              <Box label="Builder">
-                <span className="text-sm text-white/70">@{builder.username} · {builder.followerCount.toLocaleString()} followers</span>
-              </Box>
-              <Box label="Project description">
-                <p className="text-sm text-white/70 leading-relaxed">{narrative.projectDesc}</p>
-              </Box>
-              <Box label="Why it matters">
-                <p className="text-sm text-white/70 leading-relaxed">{narrative.whyItMatters}</p>
-              </Box>
-              <Box label="Launch narrative">
-                <p className="text-sm text-white/70 leading-relaxed">{narrative.launchNarrative}</p>
-              </Box>
-              <p className="text-xs text-white/25 text-center">Community Support Launch — creator not verified</p>
-              <button
-                onClick={() => setStep("balance")}
-                className="w-full py-2.5 bg-brand-500 hover:bg-brand-400 text-black font-bold rounded-xl transition-colors"
-              >
-                Continue to Launch
-              </button>
-            </>
-          )}
 
-          {/* BALANCE */}
-          {step === "balance" && (
-            <>
-              <Box label="Narra wallet">
-                <span className="font-mono text-sm text-white/70">{shortAddr}</span>
-              </Box>
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-white/40">SOL Balance</span>
-                  <button
-                    onClick={handleRefreshBalance}
-                    disabled={refreshing}
-                    className="text-xs text-white/30 hover:text-white/60 transition-colors"
-                  >
-                    {refreshing ? "Refreshing..." : "Refresh"}
-                  </button>
-                </div>
-                <p className="text-2xl font-bold font-mono mb-3">
-                  {balance.toFixed(4)}<span className="text-sm text-white/40 ml-1.5">SOL</span>
-                </p>
-                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${canLaunch ? "bg-brand-500" : "bg-yellow-500"}`}
-                    style={{ width: `${Math.min(100, (balance / MIN_SOL) * 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-white/30 mt-1.5">
-                  {canLaunch ? `Minimum ${MIN_SOL} SOL reached ✓` : `Need ${needed.toFixed(3)} more SOL`}
-                </p>
-              </div>
-              {!canLaunch && (
-                <div className="bg-yellow-500/10 border border-yellow-500/25 rounded-xl p-3 text-sm text-yellow-200/80">
-                  Send <strong>{needed.toFixed(3)} SOL</strong> to your Narra wallet to cover launch fees.
-                </div>
-              )}
-              <div className="flex gap-3">
-                <button onClick={() => setStep("review")} className="flex-1 py-2.5 border border-white/10 rounded-xl text-sm text-white/60 transition-colors">Back</button>
-                <button
-                  onClick={() => setStep("confirm")}
-                  disabled={!canLaunch}
-                  className="flex-1 py-2.5 bg-brand-500 hover:bg-brand-400 disabled:opacity-40 text-black font-bold rounded-xl transition-colors"
-                >
-                  Continue
-                </button>
-              </div>
-            </>
+              <p className="text-[11px] text-white/20 text-center">Community support launch · creator not verified</p>
+
+              <button
+                onClick={() => setStep("confirm")}
+                className="w-full py-3 bg-brand-500 hover:bg-brand-400 text-black font-bold rounded-2xl transition-colors text-sm"
+              >
+                Continue to Launch →
+              </button>
+            </div>
           )}
 
           {/* CONFIRM */}
           {step === "confirm" && (
-            <>
-              <div className="bg-brand-500/10 border border-brand-500/25 rounded-xl p-4 space-y-2">
-                <p className="text-xs text-brand-400/70 font-medium uppercase tracking-wider">Ready to launch</p>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-brand-400 text-xl">${narrative.ticker}</span>
-                  <span className="text-white/30">·</span>
-                  <span className="font-semibold">{narrative.tokenName}</span>
+            <div className="space-y-3">
+              {/* Token summary */}
+              <div className="flex items-center justify-between bg-white/4 rounded-2xl px-4 py-3">
+                <div>
+                  <p className="font-mono font-bold text-brand-400">${narrative.ticker}</p>
+                  <p className="text-xs text-white/40">{narrative.tokenName}</p>
                 </div>
-                <p className="text-sm text-white/60">{narrative.launchNarrative}</p>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm bg-white/5 rounded-xl px-4 py-3">
-                  <span className="text-white/40">Wallet</span>
-                  <span className="font-mono text-white/70">{shortAddr}</span>
-                </div>
-                <div className="flex justify-between text-sm bg-white/5 rounded-xl px-4 py-3">
-                  <span className="text-white/40">Balance</span>
-                  <span className="font-mono text-brand-400">{balance.toFixed(4)} SOL ✓</span>
-                </div>
-                <div className="flex justify-between text-sm bg-white/5 rounded-xl px-4 py-3">
-                  <span className="text-white/40">Fee share</span>
-                  <span className="text-white/70">100% to you</span>
+                <div className="text-right">
+                  <p className="text-xs text-white/40">Fee share</p>
+                  <p className="text-sm font-medium text-green-400">100% to you</p>
                 </div>
               </div>
-              <p className="text-xs text-white/20 text-center">Community Support Launch — creator not verified</p>
-              <div className="flex gap-3">
-                <button onClick={() => setStep("balance")} className="flex-1 py-2.5 border border-white/10 rounded-xl text-sm text-white/60">Back</button>
-                <button onClick={handleLaunch} className="flex-1 py-2.5 bg-brand-500 hover:bg-brand-400 text-black font-bold rounded-xl transition-colors">
-                  Confirm &amp; Launch
+
+              {/* Wallet + balance */}
+              <div className="bg-white/4 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/40">Wallet</span>
+                  <span className="font-mono text-xs text-white/60">{shortAddr}</span>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs text-white/40">Balance</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-mono font-bold ${canLaunch ? "text-green-400" : "text-yellow-400"}`}>
+                        {balance.toFixed(4)} SOL
+                      </span>
+                      <button onClick={handleRefresh} disabled={refreshing} className="text-white/20 hover:text-white/50 transition-colors">
+                        <svg className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="h-1 bg-white/8 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${canLaunch ? "bg-green-400" : "bg-yellow-400"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="text-[10px] text-white/25 mt-1">
+                    {canLaunch ? `Min. ${MIN_SOL} SOL reached ✓` : `Need ${needed.toFixed(3)} more SOL to launch`}
+                  </p>
+                </div>
+
+                {/* Inline deposit QR when balance too low */}
+                {!canLaunch && publicKey && (
+                  <div className="border-t border-white/6 pt-3">
+                    <p className="text-xs text-white/40 mb-2">Deposit SOL to this address:</p>
+                    <div className="flex items-center gap-3">
+                      <img src={qrUrl(publicKey)} alt="QR" className="w-16 h-16 rounded-xl shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-mono text-[10px] text-white/40 break-all leading-relaxed">{publicKey}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2.5 pt-1">
+                <button onClick={() => setStep("review")} className="flex-1 py-3 border border-white/8 rounded-2xl text-sm text-white/50 hover:text-white/80 hover:border-white/15 transition-colors">
+                  Back
+                </button>
+                <button
+                  onClick={handleLaunch}
+                  disabled={!canLaunch}
+                  className="flex-1 py-3 bg-brand-500 hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded-2xl transition-colors text-sm"
+                >
+                  {canLaunch ? "Launch Token" : "Need SOL"}
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {/* LAUNCHING */}
           {step === "launching" && (
-            <div className="text-center py-12">
-              <div className="w-12 h-12 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="font-semibold">Launching ${narrative.ticker}...</p>
-              <p className="text-sm text-white/40 mt-1">{statusMsg}</p>
+            <div className="text-center py-14">
+              <div className="w-12 h-12 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin mx-auto mb-5" />
+              <p className="font-semibold text-base">${narrative.ticker}</p>
+              <p className="text-sm text-white/40 mt-1.5">{statusMsg}</p>
             </div>
           )}
 
           {/* DONE */}
           {step === "done" && (
-            <div className="text-center py-8">
-              <div className="w-14 h-14 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center mx-auto mb-4 text-2xl">✓</div>
-              <p className="font-bold text-xl text-brand-400">${narrative.ticker}</p>
-              <p className="text-sm text-white/50 mb-4">{narrative.tokenName} launched successfully</p>
+            <div className="text-center py-10">
+              <div className="w-16 h-16 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center mx-auto mb-5">
+                <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="font-bold text-2xl font-mono text-brand-400 mb-1">${narrative.ticker}</p>
+              <p className="text-sm text-white/50 mb-5">{narrative.tokenName} is live on Bags</p>
               {mintAddress && (
                 <a
                   href={`https://bags.fm/token/${mintAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-xs text-brand-400/60 hover:text-brand-400 font-mono break-all bg-white/5 rounded-xl px-3 py-2 mb-4 transition-colors"
+                  className="flex items-center justify-center gap-1.5 text-xs text-brand-400/60 hover:text-brand-400 font-mono bg-white/4 rounded-xl px-3 py-2.5 mb-5 transition-colors"
                 >
-                  {mintAddress}
+                  View on Bags →
                 </a>
               )}
-              <button onClick={onClose} className="w-full py-2.5 bg-brand-500 hover:bg-brand-400 text-black font-bold rounded-xl transition-colors">Done</button>
+              <button onClick={onClose} className="w-full py-3 bg-brand-500 hover:bg-brand-400 text-black font-bold rounded-2xl transition-colors text-sm">
+                Done
+              </button>
             </div>
           )}
 
           {/* ERROR */}
           {step === "error" && (
-            <div className="text-center py-8">
-              <p className="text-red-400 font-semibold mb-2">Launch failed</p>
-              <p className="text-sm text-white/40 mb-6">{error}</p>
-              <button onClick={() => setStep("confirm")} className="w-full py-2.5 border border-white/10 rounded-xl text-sm text-white/60">Try again</button>
+            <div className="text-center py-10">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-5">
+                <svg className="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <p className="font-semibold text-red-400 mb-2">Launch failed</p>
+              <p className="text-sm text-white/35 mb-6 leading-relaxed">{error}</p>
+              <button onClick={() => setStep("confirm")} className="w-full py-3 border border-white/10 rounded-2xl text-sm text-white/60 hover:text-white/80 transition-colors">
+                Try again
+              </button>
             </div>
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function Box({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-3">
-      <p className="text-xs text-white/35 mb-1.5">{label}</p>
-      {children}
     </div>
   );
 }
