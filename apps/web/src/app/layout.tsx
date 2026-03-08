@@ -28,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
             <nav className="hidden sm:flex items-center gap-0.5">
               <Link href="/" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Discover</Link>
+              <Link href="/track" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Track</Link>
               <Link href="/launched" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Launched</Link>
               <Link href="/wallet" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Wallet</Link>
               <Link href="/docs" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Docs</Link>
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           <div className="sm:hidden border-b border-white/10 px-4 py-2 flex gap-1 overflow-x-auto">
             <Link href="/" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Discover</Link>
+            <Link href="/track" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Track</Link>
             <Link href="/launched" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Launched</Link>
             <Link href="/wallet" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Wallet</Link>
             <Link href="/docs" className="px-3 py-1.5 text-sm text-white/55 hover:text-white hover:bg-white/5 rounded-lg transition-colors whitespace-nowrap">Docs</Link>

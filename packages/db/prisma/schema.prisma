@@ -80,3 +80,9 @@ model Config {
   key   String @id
   value String
 }
+
+model TrackedAccount {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  addedAt   DateTime @default(now())
+}
