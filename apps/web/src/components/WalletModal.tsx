@@ -122,7 +122,7 @@ export function WalletModal() {
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-start justify-end transition-all duration-300 ${
+      className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 p-4 ${
         animating ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -137,8 +137,8 @@ export function WalletModal() {
       {/* Panel */}
       <div
         ref={panelRef}
-        className={`relative z-10 h-full w-full max-w-sm bg-[#0d0d0d] border-l border-white/10 shadow-2xl flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-          animating ? "translate-x-0" : "translate-x-full"
+        className={`relative z-10 w-full max-w-md bg-[#0d0d0d] border border-white/10 shadow-2xl rounded-2xl flex flex-col max-h-[90vh] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+          animating ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-2"
         }`}
       >
         {/* Header */}
